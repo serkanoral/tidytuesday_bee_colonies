@@ -1,0 +1,6 @@
+"0","colony %>% 
+  filter(state != ""United States"") %>% 
+  group_by(months,year) %>% 
+  summarise(colony_lost_pct/sum(colony_lost_pct))
+"
+"2","`summarise()` has grouped output by 'months', 'year'. You can override using the `.groups` argument."

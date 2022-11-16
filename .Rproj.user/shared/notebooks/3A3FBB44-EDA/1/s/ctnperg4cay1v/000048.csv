@@ -1,0 +1,6 @@
+"0","colonies %>% "
+"0","  group_by(date, state) %>% "
+"0","  summarise(colony_added,colony_lost, colony_diff = colony_added - colony_lost) %>% "
+"0","  ggplot(aes(colony_diff, state, fill = factor(date))) + geom_col() +"
+"0","  labs(fill = ""Date"", x= ""Added Colony minus Lost Colony"", y = NULL) "
+"2","`summarise()` has grouped output by 'date', 'state'. You can override using the `.groups` argument."

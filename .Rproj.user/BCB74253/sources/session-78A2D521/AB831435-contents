@@ -1,0 +1,219 @@
+---
+title: "EDA"
+author: "Serkan Oral"
+date: "2022-11-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+library(naniar)
+library(lubridate)
+library(mice)
+library(maps)
+library(gganimate)
+library(gifski)
+library(transformr)
+
+```
+
+```{r}
+bee <- tt_load('2022-01-11')
+
+colony <- bee$colony
+stressor <- bee$stressor
+
+```
+
+```{r}
+df_col <- colony %>% 
+  filter(state != "United States") 
+```
+
+
+```{r}
+ df_col%>% 
+  miss_var_summary()
+```
+```{r}
+df_col %>% 
+  filter(months == "April-June" & year == "2019")
+  
+```
+April-June 2019 is missing we are going to impute that.
+
+```{r}
+
+df_fix<-  df_col %>% 
+  select(year, months, state,colony_n,colony_lost,colony_added,colony_reno)
+
+
+```
+
+
+
+
+```{r}
+
+df_fix2 <-df_fix %>% 
+  separate(months,into = c("month_1", "month_2"),sep = "-") %>% 
+  mutate(date = ymd(paste0(year, "-" , month_1,"-", 01))) %>% 
+  select(date , everything())
+```
+
+
+```{r}
+will_impute <-   df_fix2 %>%  
+  filter(year == "2019", month_1 == "April") 
+
+df_fix3 <-   df_fix2 %>%  
+  filter(year != "2019", month_1 != "April")  %>% 
+  mutate(across(where(anyNA), ~ replace_na(., 0)))
+
+df_fix4 <- df_fix3 %>%  bind_rows(will_impute)
+
+```
+
+
+```{r include=FALSE}
+tempData <- mice(df_fix4,m=5,maxit=50,meth='pmm',seed=500)
+```
+
+```{r}
+df_fix5 <- complete(tempData,1)
+```
+
+
+```{r}
+stressor_fix1<-  stressor %>% 
+  separate(months,into = c("month_1", "month_2"),sep = "-") %>% 
+  mutate(date = ymd(paste0(year, "-" , month_1,"-", 01))) %>% 
+  select(date , everything())
+```
+
+
+
+```{r include=FALSE}
+
+tempData_stresso <- mice(stressor_fix1,m=5,maxit=50,meth='pmm',seed=500)
+
+  
+```
+
+```{r}
+
+stressor_fix2 <- complete(tempData_stresso,1)
+```
+
+
+
+
+```{r}
+  df_fix6 <- df_fix5 %>% 
+  left_join(stressor_fix2 %>% select(date, state, stressor,stress_pct ), 
+            by = c("date" = "date" , "state" = "state"))
+
+
+  
+```
+
+
+```{r}
+setdiff(state.name, colonies$state %>% unique())
+
+
+Alaska <-   df_fix6 %>% 
+  filter(state == "Other States") %>% 
+  mutate(colony_n = round(colony_n/5), colony_lost = round(colony_lost /5) ,
+         colony_added = round(colony_added/5),colony_reno = round(colony_reno/5), stress_pct = round(stress_pct /5),
+         state = "Alaska")
+
+Delaware <-   df_fix6 %>% 
+  filter(state == "Other States") %>% 
+  mutate(colony_n = round(colony_n/5), colony_lost = round(colony_lost /5) ,
+         colony_added = round(colony_added/5),colony_reno = round(colony_reno/5), stress_pct = round(stress_pct /5),
+         state = "Delaware")
+
+Nevada <-   df_fix6 %>% 
+  filter(state == "Other States") %>% 
+  mutate(colony_n = round(colony_n/5), colony_lost = round(colony_lost /5) ,
+         colony_added = round(colony_added/5),colony_reno = round(colony_reno/5), stress_pct = round(stress_pct /5),
+         state = "Nevada")
+
+New_Hampshire <-   df_fix6 %>% 
+  filter(state == "Other States") %>% 
+  mutate(colony_n = round(colony_n/5), colony_lost = round(colony_lost /5) ,
+         colony_added = round(colony_added/5),colony_reno = round(colony_reno/5), stress_pct = round(stress_pct /5),
+         state = "New Hampshire")
+
+
+Rhode_Island <-   df_fix6 %>% 
+  filter(state == "Other States") %>% 
+  mutate(colony_n = round(colony_n/5), colony_lost = round(colony_lost /5) ,
+         colony_added = round(colony_added/5),colony_reno = round(colony_reno/5), stress_pct = round(stress_pct /5),
+         state = "Rhode Island")
+
+colonies<-   df_fix6 %>% 
+  filter(state != "Other States") %>% 
+  bind_rows(Alaska,Delaware,Nevada, New_Hampshire,Rhode_Island)
+
+```
+
+
+
+```{r}
+colonies %>% 
+  group_by(date,state) %>% 
+  summarise(colony_added_sum = sum(colony_added), colony_lost_sum = sum(colony_lost))
+```
+
+
+
+
+```{r}
+states <- map_data("state")
+
+states <- states %>% mutate(region = str_to_title(region))
+```
+
+```{r}
+last <-  states %>%  left_join(colonies, by = c( "region"= "state" )) %>% select(-subregion)
+```
+
+```{r}
+last %>% 
+  drop_na() %>% 
+  ggplot() +geom_polygon(aes(x=long, y=lat, group=group, fill = colony_lost), 
+          color="white", size = 0.2) +facet_wrap(~date)
+```
+
+```{r}
+
+last %>% 
+  drop_na() %>% 
+  ggplot() +geom_polygon(aes(x=long, y=lat, group=group, fill = colony_added), 
+          color="white", size = 0.2) +facet_wrap(~date)
+```
+
+
+```{r}
+colonies %>% 
+  group_by(date, state) %>% 
+  summarise(colony_added,colony_lost, colony_diff = colony_added - colony_lost) %>% 
+  ggplot(aes(colony_diff, state, fill = factor(date))) + geom_col() +
+  labs(fill = "Date", x= "Added Colony minus Lost Colony", y = NULL) 
+
+
+
+```
+
+
+
+
+
+

@@ -1,0 +1,3 @@
+"0","states <- map_data(""state"")"
+"0",""
+"0","states <- states %>% mutate(region = str_to_title(region))"
